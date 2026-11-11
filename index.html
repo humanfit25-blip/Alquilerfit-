@@ -1,1 +1,528 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alquiler Fit · Inventario</title>
+<style>
+  /* ============================================================
+     COLORES CORPORATIVOS — cambia aquí el verde si hace falta
+     ============================================================ */
+  :root{
+    --verde:#1FA34A;        /* verde principal */
+    --verde-osc:#14773A;    /* verde oscuro (textos y hover) */
+    --verde-claro:#E9F7EE;  /* fondo suave verde */
+    --blanco:#FFFFFF;
+    --fondo:#F6F8F7;
+    --texto:#14231A;
+    --gris:#6B7A71;
+    --linea:#E1E8E3;
+    --radio:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:var(--fondo);color:var(--texto);line-height:1.4;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- CABECERA ---------- */
+  header{
+    background:var(--blanco);border-bottom:4px solid var(--verde);
+    padding:22px 18px 18px;position:sticky;top:0;z-index:10;
+    box-shadow:0 2px 12px rgba(20,35,26,.05);
+  }
+  .top{max-width:1100px;margin:0 auto}
+  .marca{display:flex;align-items:center;gap:12px}
+  /* Kettlebell 3D flotante */
+  .kb{position:relative;width:58px;height:72px;flex-shrink:0;cursor:grab;touch-action:none}
+  .kb canvas,.kb svg{position:absolute;inset:0 0 8px 0;width:100%;height:calc(100% - 8px);
+    animation:flotar 4.2s ease-in-out infinite}
+  .kb svg{display:none}
+  .kb.sin-gl canvas{display:none}
+  .kb.sin-gl svg{display:block}
+  .kb .sombra{position:absolute;left:50%;bottom:0;width:38px;height:7px;margin-left:-19px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(20,119,58,.38),rgba(20,119,58,0));
+    animation:sombra 4.2s ease-in-out infinite}
+  @keyframes flotar{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  @keyframes sombra{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.72);opacity:.55}}
+  @media (prefers-reduced-motion:reduce){.kb canvas,.kb svg,.kb .sombra{animation:none}}
+  .marca h1{font-size:22px;font-weight:800;letter-spacing:.5px;line-height:1}
+  .marca h1 span{color:var(--verde)}
+  .marca p{font-size:13px;color:var(--gris);margin-top:4px}
+
+  .controles{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;align-items:center}
+  .buscar{
+    flex:1 1 240px;display:flex;align-items:center;gap:8px;
+    background:var(--fondo);border:1.5px solid var(--linea);border-radius:999px;padding:9px 14px;
+  }
+  .buscar:focus-within{border-color:var(--verde);background:#fff}
+  .buscar input{border:0;outline:0;background:transparent;font-size:15px;width:100%;color:var(--texto)}
+  .btn{
+    border:1.5px solid var(--verde);background:#fff;color:var(--verde-osc);
+    font-weight:600;font-size:13px;padding:8px 14px;border-radius:999px;cursor:pointer;
+  }
+  .btn:hover{background:var(--verde-claro)}
+
+  .chips{display:flex;gap:8px;overflow-x:auto;margin-top:12px;padding-bottom:2px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    white-space:nowrap;border:1.5px solid var(--linea);background:#fff;color:var(--gris);
+    font-size:13px;font-weight:600;padding:7px 13px;border-radius:999px;cursor:pointer;
+  }
+  .chip.activo{background:var(--verde);border-color:var(--verde);color:#fff}
+
+  /* ---------- CONTENIDO ---------- */
+  main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+
+  .resumen{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:26px}
+  .dato{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);padding:14px}
+  .dato b{display:block;font-size:24px;color:var(--verde-osc);line-height:1.1}
+  .dato small{font-size:12px;color:var(--gris)}
+
+  .zona{margin-bottom:30px}
+  .zona-tit{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .zona-tit h2{font-size:17px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+  .zona-tit .pin{width:10px;height:10px;border-radius:50%;background:var(--verde)}
+  .zona-tit .cuenta{margin-left:auto;font-size:12px;color:var(--gris);font-weight:600}
+
+  .rejilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;align-items:start}
+
+  /* Recuadro de categoría */
+  .caja{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);overflow:hidden;transition:box-shadow .2s}
+  .caja.abierta{box-shadow:0 6px 20px rgba(31,163,74,.10);border-color:#CDE9D6}
+  .caja-cab{
+    width:100%;display:flex;align-items:center;gap:12px;background:none;border:0;
+    padding:15px 16px;cursor:pointer;text-align:left;color:var(--texto);font:inherit;
+  }
+  .icono{
+    width:36px;height:36px;border-radius:10px;background:var(--verde-claro);
+    display:grid;place-items:center;font-size:18px;flex-shrink:0;
+  }
+  .caja-cab h3{font-size:15px;font-weight:700}
+  .caja-cab small{display:block;font-size:12px;color:var(--gris);margin-top:2px}
+  .flecha{margin-left:auto;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+    background:var(--fondo);color:var(--verde-osc);font-size:13px;transition:transform .25s}
+  .caja.abierta .flecha{transform:rotate(180deg);background:var(--verde);color:#fff}
+
+  .caja-cuerpo{display:none;border-top:1px solid var(--linea)}
+  .caja.abierta .caja-cuerpo{display:block}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{
+    text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--verde-osc);background:var(--verde-claro);padding:8px 12px;font-weight:700;
+  }
+  td{padding:10px 12px;border-top:1px solid var(--linea);vertical-align:top}
+  tr:first-child td{border-top:0}
+  td.num{font-weight:800;color:var(--verde-osc);white-space:nowrap}
+  td.num em{font-style:normal;font-weight:500;font-size:11px;color:var(--gris);display:block}
+  td.kg{white-space:nowrap}
+  .nota{display:block;font-size:12px;color:var(--gris);margin-top:2px}
+  .tag{
+    display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+    background:#FFF4DC;color:#8A5A00;border-radius:6px;padding:2px 6px;margin-left:4px;vertical-align:middle;
+  }
+  .vacio{color:#B7C2BB}
+  .sin-res{text-align:center;color:var(--gris);padding:40px 0;display:none}
+
+  footer{text-align:center;font-size:12px;color:var(--gris);padding:20px}
+
+  @media (max-width:560px){
+    header{position:static}
+    .resumen{grid-template-columns:repeat(3,1fr);gap:8px}
+    .dato{padding:11px}
+    .dato b{font-size:20px}
+    .rejilla{grid-template-columns:1fr}
+    td,th{padding:9px 10px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top">
+    <div class="marca">
+      <div class="kb" id="kb" title="Arrástrala para girarla">
+        <canvas id="kbCanvas"></canvas>
+        <svg viewBox="0 0 100 124" aria-hidden="true">
+          <defs><radialGradient id="kbg" cx="35%" cy="35%" r="70%">
+            <stop offset="0" stop-color="#7EE0A0"/><stop offset=".45" stop-color="#1FA34A"/><stop offset="1" stop-color="#0B4F25"/></radialGradient></defs>
+          <path fill="url(#kbg)" d="M30 46 C24 30 26 12 50 10 C74 12 76 30 70 46 L62 44 C66 32 64 22 50 21 C36 22 34 32 38 44 Z"/>
+          <path fill="url(#kbg)" d="M50 38 C76 38 92 56 92 78 C92 98 80 108 72 112 L28 112 C20 108 8 98 8 78 C8 56 24 38 50 38 Z"/>
+        </svg>
+        <span class="sombra"></span>
+      </div>
+      <div>
+        <h1>ALQUILER <span>FIT</span></h1>
+        <p>Inventario de material · Uso interno</p>
+      </div>
+    </div>
+    <div class="controles">
+      <label class="buscar">
+        <span>🔍</span>
+        <input id="buscar" type="search" placeholder="Buscar material, marca o kg…" autocomplete="off">
+      </label>
+      <button class="btn" id="abrirTodo">Abrir todo</button>
+      <button class="btn" id="cerrarTodo">Cerrar todo</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+</header>
+
+<main>
+  <div class="resumen">
+    <div class="dato"><b id="dRefs">0</b><small>Referencias</small></div>
+    <div class="dato"><b id="dZonas">0</b><small>Zonas</small></div>
+    <div class="dato"><b id="dFecha">—</b><small>Último recuento</small></div>
+  </div>
+  <div id="inventario"></div>
+  <p class="sin-res" id="sinRes">No hay material que coincida con la búsqueda.</p>
+</main>
+
+<footer>Alquiler Fit · Inventario interno</footer>
+
+<script>
+/* =================================================================
+   ✏️  EDITA AQUÍ EL INVENTARIO
+   -----------------------------------------------------------------
+   Cada línea de material es así:
+     { h:"Herramienta", cant:3, ud:"uds", kg:"", marca:"", nota:"", caja:false }
+
+     h     → nombre de la herramienta
+     cant  → cantidad (número)
+     ud    → unidad: "uds", "parejas", "pack", "juego"…
+     kg    → peso (texto, ej. "2,5"). Déjalo "" si no aplica
+     marca → marca. Déjalo "" si no la hay
+     nota  → detalle extra (colores, medidas…). "" si no hay
+     caja  → true si está en caja / empaquetado
+
+   Para añadir material: copia una línea, pégala debajo y cambia los datos.
+   Para quitarlo: borra la línea entera.
+   ================================================================= */
+
+const ULTIMO_RECUENTO = "11/11/2026";
+
+const INVENTARIO = [
+  {
+    zona: "Almacén de arriba",
+    categorias: [
+      { cat:"Racks", icono:"🏗️", items:[
+        { h:"Rack portátil back squat", cant:1, ud:"uds", kg:"", marca:"", nota:"", caja:true },
+      ]},
+      { cat:"Barras", icono:"🏋️", items:[
+        { h:"Barra", cant:2, ud:"uds", kg:"15", marca:"", nota:"", caja:false },
+        { h:"Barra Z", cant:1, ud:"uds", kg:"", marca:"", nota:"Tope olímpico 50 mm", caja:false },
+      ]},
+      { cat:"Discos", icono:"⚫", items:[
+        { h:"Disco de técnica PVC (grande)", cant:2, ud:"uds", kg:"", marca:"", nota:"Verdes", caja:false },
+        { h:"Disco (pequeño)", cant:6, ud:"uds", kg:"1,5", marca:"Singular", nota:"", caja:false },
+        { h:"Disco de técnica (grande)", cant:4, ud:"uds", kg:"2,5", marca:"Singular Wod", nota:"", caja:false },
+        { h:"Disco (pequeño)", cant:12, ud:"uds", kg:"2,5", marca:"Ruster", nota:"6 cajas", caja:true },
+        { h:"Disco de técnica (grande)", cant:2, ud:"uds", kg:"5", marca:"Singular Wod", nota:"", caja:false },
+        { h:"Disco (pequeño)", cant:6, ud:"uds", kg:"5", marca:"Ruster", nota:"Blancos", caja:false },
+        { h:"Disco (grande)", cant:7, ud:"uds", kg:"5", marca:"Singular Wod", nota:"Negros", caja:false },
+        { h:"Disco", cant:8, ud:"uds", kg:"10", marca:"Singular", nota:"", caja:false },
+        { h:"Disco", cant:2, ud:"uds", kg:"10", marca:"GetStrong", nota:"", caja:false },
+        { h:"Disco", cant:2, ud:"uds", kg:"15", marca:"GetStrong", nota:"Amarillos", caja:false },
+        { h:"Disco", cant:2, ud:"uds", kg:"20", marca:"GetStrong", nota:"Azules", caja:false },
+        { h:"Disco", cant:4, ud:"uds", kg:"25", marca:"Ruster", nota:"Negros", caja:false },
+      ]},
+      { cat:"Cierres", icono:"🔒", items:[
+        { h:"Cierres de PVC", cant:5, ud:"parejas", kg:"", marca:"", nota:"2 rojos · 2 azules · 1 negro", caja:false },
+        { h:"Cierres metálicos", cant:5, ud:"parejas", kg:"", marca:"", nota:"", caja:false },
+      ]},
+      { cat:"Kettlebells", icono:"🔔", items:[
+        { h:"Kettlebell de competición", cant:2, ud:"uds", kg:"4", marca:"Singular Wod", nota:"", caja:false },
+        { h:"Kettlebell de competición", cant:1, ud:"uds", kg:"6", marca:"Singular Wod", nota:"", caja:false },
+        { h:"Kettlebell de competición", cant:2, ud:"uds", kg:"10", marca:"Singular Wod", nota:"", caja:false },
+        { h:"Kettlebell de competición", cant:2, ud:"uds", kg:"12", marca:"Singular Wod", nota:"", caja:false },
+        { h:"Kettlebell de competición", cant:1, ud:"uds", kg:"16", marca:"Singular Wod", nota:"", caja:false },
+      ]},
+      { cat:"Mancuernas", icono:"💪", items:[
+        { h:"Mancuerna", cant:8, ud:"uds", kg:"2,5", marca:"", nota:"", caja:false },
+        { h:"Mancuerna", cant:4, ud:"uds", kg:"6", marca:"", nota:"", caja:false },
+        { h:"Mancuerna", cant:3, ud:"uds", kg:"10", marca:"", nota:"", caja:false },
+        { h:"Mancuerna", cant:7, ud:"uds", kg:"12,5", marca:"", nota:"", caja:false },
+        { h:"Mancuerna", cant:8, ud:"uds", kg:"15", marca:"", nota:"", caja:false },
+        { h:"Mancuerna recargable", cant:2, ud:"uds", kg:"", marca:"", nota:"Tope olímpico 50 mm", caja:false },
+      ]},
+      { cat:"Balones medicinales (wall ball)", icono:"🏐", items:[
+        { h:"Balón medicinal", cant:1, ud:"uds", kg:"3", marca:"Ruster", nota:"", caja:false },
+        { h:"Balón medicinal", cant:1, ud:"uds", kg:"5", marca:"Ruster", nota:"", caja:false },
+        { h:"Balón medicinal", cant:3, ud:"uds", kg:"6", marca:"Ruster", nota:"", caja:false },
+        { h:"Balón medicinal", cant:2, ud:"uds", kg:"6,35", marca:"Singular Wod", nota:"14 lb", caja:false },
+        { h:"Balón medicinal", cant:2, ud:"uds", kg:"7", marca:"Ruster", nota:"", caja:false },
+        { h:"Balón medicinal", cant:1, ud:"uds", kg:"12", marca:"Ruster", nota:"", caja:false },
+      ]},
+      { cat:"Bancos y steps", icono:"🪑", items:[
+        { h:"Banco plano", cant:1, ud:"uds", kg:"", marca:"FIT ness", nota:"", caja:false },
+        { h:"Step de PVC", cant:3, ud:"uds", kg:"", marca:"", nota:"+ 12 soportes", caja:false },
+      ]},
+      { cat:"Accesorios", icono:"🧰", items:[
+        { h:"AbMat", cant:2, ud:"uds", kg:"", marca:"Singular Wod", nota:"Almohadilla sit-up", caja:false },
+        { h:"Battle rope", cant:1, ud:"uds", kg:"", marca:"", nota:"Cuerda larga de nylon", caja:false },
+        { h:"Rope climb", cant:1, ud:"uds", kg:"", marca:"", nota:"Cuerda para trepar", caja:false },
+      ]},
+    ]
+  },
+
+  {
+    zona: "Abajo",
+    categorias: [
+      { cat:"Bancos", icono:"🪑", items:[
+        { h:"Banco reclinable", cant:2, ud:"uds", kg:"", marca:"", nota:"", caja:false },
+        { h:"Banco plano", cant:3, ud:"uds", kg:"", marca:"", nota:"", caja:false },
+      ]},
+    ]
+  },
+
+  {
+    zona: "Almacén de abajo",
+    categorias: [
+      { cat:"Racks", icono:"🏗️", items:[
+        { h:"Rack grande 6 pilares", cant:1, ud:"uds", kg:"", marca:"Sin marca", nota:"", caja:false },
+        { h:"Rack grande 6 pilares", cant:2, ud:"uds", kg:"", marca:"GetStrong", nota:"Quitados 2 pilares a cada rack (empaquetados) + 2 pilares de repuesto. 8 bases pequeñas para añadir", caja:false },
+        { h:"Rack pequeño (back squat + dominadas)", cant:1, ud:"uds", kg:"", marca:"GetStrong", nota:"", caja:false },
+        { h:"Paralelas", cant:1, ud:"juego", kg:"", marca:"GetStrong", nota:"", caja:false },
+      ]},
+      { cat:"Barras", icono:"🏋️", items:[
+        { h:"Barra", cant:1, ud:"uds", kg:"20", marca:"", nota:"", caja:false },
+      ]},
+      { cat:"Discos", icono:"⚫", items:[
+        { h:"Disco", cant:2, ud:"uds", kg:"5", marca:"", nota:"", caja:false },
+        { h:"Disco", cant:2, ud:"uds", kg:"10", marca:"", nota:"", caja:false },
+        { h:"Disco", cant:2, ud:"uds", kg:"15", marca:"", nota:"", caja:false },
+        { h:"Disco", cant:2, ud:"uds", kg:"20", marca:"", nota:"", caja:false },
+        { h:"Pack de discos fraccionados", cant:2, ud:"packs", kg:"", marca:"", nota:"De colores", caja:false },
+      ]},
+      { cat:"Cierres", icono:"🔒", items:[
+        { h:"Cierres metálicos", cant:2, ud:"parejas", kg:"", marca:"", nota:"", caja:false },
+      ]},
+      { cat:"Kettlebells", icono:"🔔", items:[
+        { h:"Kettlebell", cant:1, ud:"uds", kg:"8", marca:"GetStrong", nota:"", caja:false },
+        { h:"Kettlebell", cant:1, ud:"uds", kg:"12", marca:"GetStrong", nota:"", caja:false },
+        { h:"Kettlebell", cant:1, ud:"uds", kg:"16", marca:"GetStrong", nota:"", caja:false },
+        { h:"Kettlebell", cant:1, ud:"uds", kg:"20", marca:"GetStrong", nota:"", caja:false },
+        { h:"Kettlebell", cant:1, ud:"uds", kg:"24", marca:"GetStrong", nota:"", caja:false },
+      ]},
+      { cat:"Mancuernas", icono:"💪", items:[
+        { h:"Mancuerna", cant:2, ud:"uds", kg:"5", marca:"GetStrong", nota:"", caja:false },
+        { h:"Mancuerna", cant:2, ud:"uds", kg:"10", marca:"GetStrong", nota:"", caja:false },
+        { h:"Mancuerna", cant:2, ud:"uds", kg:"15", marca:"GetStrong", nota:"", caja:false },
+        { h:"Mancuerna", cant:2, ud:"uds", kg:"22,5", marca:"GetStrong", nota:"", caja:false },
+      ]},
+      { cat:"Bancos y steps", icono:"🪑", items:[
+        { h:"Banco reclinable", cant:1, ud:"uds", kg:"", marca:"", nota:"", caja:false },
+        { h:"Banco plano", cant:3, ud:"uds", kg:"", marca:"", nota:"", caja:true },
+        { h:"Step profesional", cant:4, ud:"uds", kg:"", marca:"", nota:"", caja:true },
+      ]},
+      { cat:"Cardio", icono:"🚴", items:[
+        { h:"Bicicleta de spinning", cant:1, ud:"uds", kg:"", marca:"", nota:"", caja:false },
+      ]},
+      { cat:"Strongman", icono:"🪨", items:[
+        { h:"Piedra de atlas", cant:4, ud:"uds", kg:"", marca:"", nota:"Hormigón", caja:false },
+      ]},
+      { cat:"Suelo y esterillas", icono:"🟩", items:[
+        { h:"Loseta de goma", cant:34, ud:"uds", kg:"", marca:"", nota:"2 cm de grosor", caja:false },
+        { h:"Landing pro", cant:1, ud:"uds", kg:"", marca:"GetStrong", nota:"Para soltar la barra", caja:false },
+        { h:"Esterilla", cant:5, ud:"uds", kg:"", marca:"Ruster", nota:"", caja:false },
+        { h:"Soporte de esterillas", cant:1, ud:"uds", kg:"", marca:"Ruster", nota:"", caja:false },
+        { h:"Foam box jump", cant:1, ud:"uds", kg:"", marca:"", nota:"", caja:false },
+      ]},
+      { cat:"Accesorios", icono:"🧰", items:[
+        { h:"AbMat", cant:1, ud:"uds", kg:"", marca:"", nota:"Almohadilla sit-up", caja:false },
+        { h:"Bandas elásticas", cant:1, ud:"pack", kg:"", marca:"GetStrong", nota:"", caja:false },
+        { h:"Banda elástica", cant:6, ud:"uds", kg:"", marca:"Singular Wod", nota:"12 mm", caja:false },
+      ]},
+    ]
+  },
+];
+/* ===================== FIN DE LA ZONA EDITABLE ===================== */
+
+
+/* ---------- Motor (no hace falta tocar) ---------- */
+const $ = s => document.querySelector(s);
+const cont = $("#inventario");
+let zonaActiva = "Todas";
+let busqueda = "";
+
+const norm = t => (t||"").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+const esc = t => (t||"").toString().replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function pintarChips(){
+  const zonas = ["Todas", ...INVENTARIO.map(z=>z.zona)];
+  $("#chips").innerHTML = zonas.map(z =>
+    `<button class="chip ${z===zonaActiva?"activo":""}" data-z="${esc(z)}">${esc(z)}</button>`).join("");
+  document.querySelectorAll(".chip").forEach(b => b.onclick = () => { zonaActiva = b.dataset.z; pintarChips(); pintar(); });
+}
+
+function pintar(){
+  const q = norm(busqueda.trim());
+  let html = "", hay = false;
+
+  INVENTARIO.forEach((z, zi) => {
+    if (zonaActiva !== "Todas" && z.zona !== zonaActiva) return;
+    let cajas = "", refsZona = 0;
+
+    z.categorias.forEach((c, ci) => {
+      const items = c.items.filter(i => !q ||
+        norm([i.h, i.marca, i.nota, i.kg, i.kg && i.kg+" kg", c.cat, z.zona].join(" ")).includes(q));
+      if (!items.length) return;
+      refsZona += items.length;
+      const id = `c${zi}-${ci}`;
+      const abierta = q ? "abierta" : (estado[id] ? "abierta" : "");
+      const filas = items.map(i => `
+        <tr>
+          <td>${esc(i.h)}${i.caja?'<span class="tag">En caja</span>':''}${i.nota?`<span class="nota">${esc(i.nota)}</span>`:''}</td>
+          <td class="num">${i.cant}<em>${esc(i.ud)}</em></td>
+          <td class="kg">${i.kg?esc(i.kg)+" kg":'<span class="vacio">—</span>'}</td>
+          <td>${i.marca?esc(i.marca):'<span class="vacio">—</span>'}</td>
+        </tr>`).join("");
+      cajas += `
+        <div class="caja ${abierta}" data-id="${id}">
+          <button class="caja-cab">
+            <span class="icono">${c.icono||"📦"}</span>
+            <span><h3>${esc(c.cat)}</h3><small>${items.length} referencia${items.length>1?"s":""}</small></span>
+            <span class="flecha">▼</span>
+          </button>
+          <div class="caja-cuerpo">
+            <table>
+              <thead><tr><th>Herramienta</th><th>Cant.</th><th>Kg</th><th>Marca</th></tr></thead>
+              <tbody>${filas}</tbody>
+            </table>
+          </div>
+        </div>`;
+    });
+
+    if (!cajas) return;
+    hay = true;
+    html += `
+      <section class="zona">
+        <div class="zona-tit"><span class="pin"></span><h2>${esc(z.zona)}</h2>
+          <span class="cuenta">${refsZona} referencias</span></div>
+        <div class="rejilla">${cajas}</div>
+      </section>`;
+  });
+
+  cont.innerHTML = html;
+  $("#sinRes").style.display = hay ? "none" : "block";
+  document.querySelectorAll(".caja-cab").forEach(b => b.onclick = () => {
+    const caja = b.parentElement;
+    caja.classList.toggle("abierta");
+    estado[caja.dataset.id] = caja.classList.contains("abierta");
+  });
+}
+
+const estado = {};
+function todas(abrir){
+  document.querySelectorAll(".caja").forEach(c => { c.classList.toggle("abierta", abrir); estado[c.dataset.id] = abrir; });
+}
+
+$("#dRefs").textContent = INVENTARIO.reduce((n,z)=>n+z.categorias.reduce((m,c)=>m+c.items.length,0),0);
+$("#dZonas").textContent = INVENTARIO.length;
+$("#dFecha").textContent = ULTIMO_RECUENTO;
+$("#buscar").oninput = e => { busqueda = e.target.value; pintar(); };
+$("#abrirTodo").onclick = () => todas(true);
+$("#cerrarTodo").onclick = () => todas(false);
+
+pintarChips();
+pintar();
+
+/* ---------- Kettlebell 3D (WebGL, sin librerías externas) ---------- */
+(function(){
+  const wrap = document.getElementById("kb");
+  const cv = document.getElementById("kbCanvas");
+  const gl = cv.getContext("webgl", {alpha:true, antialias:true, premultipliedAlpha:true});
+  if (!gl) { wrap.classList.add("sin-gl"); return; }
+
+  const VS = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
+  const FS = `
+precision highp float;
+uniform vec2 R; uniform float A;
+float smin(float a,float b,float k){float h=clamp(.5+.5*(b-a)/k,0.,1.);return mix(b,a,h)-k*h*(1.-h);}
+float map(vec3 p){
+  vec3 q=p; if(q.y>0.) q.y/=0.92;
+  float b=(length(q)-1.)*0.9;
+  b=max(b,-(p.y+0.86));
+  vec2 v=p.xy-vec2(0.,1.135);
+  float h=length(vec2(length(v)-0.6,p.z))-0.15;
+  h=max(h,0.75-p.y);
+  return smin(b,h,0.12);
+}
+vec3 rot(vec3 p){
+  float c=cos(A),s=sin(A); p=vec3(c*p.x+s*p.z,p.y,-s*p.x+c*p.z);
+  float ct=cos(.12),st=sin(.12); return vec3(p.x,ct*p.y-st*p.z,st*p.y+ct*p.z);
+}
+float M(vec3 p){return map(rot(p-vec3(0.,0.51,0.))+vec3(0.,0.51,0.));}
+vec3 nrm(vec3 p){vec2 e=vec2(.0015,0.);return normalize(vec3(M(p+e.xyy)-M(p-e.xyy),M(p+e.yxy)-M(p-e.yxy),M(p+e.yyx)-M(p-e.yyx)));}
+vec3 env(vec3 r){
+  vec3 c=mix(vec3(.30,.36,.33),vec3(.92,.96,.94),smoothstep(-.35,.45,r.y));
+  c+=1.4*smoothstep(.62,.82,dot(r,normalize(vec3(-.6,.55,.6))));
+  c+=.9*smoothstep(.70,.90,dot(r,normalize(vec3(.85,.25,-.3))));
+  c+=.5*smoothstep(.85,.98,r.y);
+  return c;
+}
+void main(){
+  vec2 uv=(gl_FragCoord.xy-.5*R)/R.y;
+  vec3 ro=vec3(0.,.51,5.2), rd=normalize(vec3(uv*.68,-1.));
+  float t=3.4,d; bool hit=false;
+  for(int i=0;i<90;i++){d=M(ro+rd*t); if(d<.0008){hit=true;break;} t+=d; if(t>7.5)break;}
+  if(!hit){gl_FragColor=vec4(0.);return;}
+  vec3 p=ro+rd*t, n=nrm(p), r=reflect(rd,n), vv=-rd;
+  vec3 g=vec3(.11,.64,.29);
+  vec3 L=normalize(vec3(-.5,.8,.6));
+  float occ=clamp(M(p+n*.12)/.12,0.,1.);
+  float fr=pow(1.-max(dot(n,vv),0.),4.);
+  vec3 col=g*env(r)*.78*occ;
+  col+=g*max(dot(n,L),0.)*.35+g*.12;
+  col+=vec3(1.)*pow(max(dot(r,L),0.),90.)*1.3;
+  col+=env(r)*fr*.32;
+  col=col/(1.+col*.18);
+  gl_FragColor=vec4(col,1.);
+}`;
+  function sh(type, src){ const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s); return s; }
+  let prog;
+  try{
+    prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER,VS));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER,FS));
+    gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog,gl.LINK_STATUS)) throw "link";
+  }catch(e){ wrap.classList.add("sin-gl"); return; }
+  gl.useProgram(prog);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog,"p"); gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  const uR = gl.getUniformLocation(prog,"R"), uA = gl.getUniformLocation(prog,"A");
+
+  function size(){
+    const dpr = Math.min(window.devicePixelRatio||1, 2.5);
+    cv.width = Math.round(cv.clientWidth*dpr); cv.height = Math.round(cv.clientHeight*dpr);
+    gl.viewport(0,0,cv.width,cv.height);
+  }
+  size(); window.addEventListener("resize", size);
+
+  const lento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let ang = -0.5, vel = 0, last = performance.now(), drag = false, px = 0;
+  wrap.addEventListener("pointerdown", e => { drag = true; px = e.clientX; wrap.setPointerCapture(e.pointerId); wrap.style.cursor="grabbing"; });
+  wrap.addEventListener("pointermove", e => { if(!drag) return; const dx = e.clientX-px; px = e.clientX; ang += dx*0.03; vel = dx*0.6; });
+  const soltar = () => { drag = false; wrap.style.cursor=""; };
+  wrap.addEventListener("pointerup", soltar); wrap.addEventListener("pointercancel", soltar);
+
+  function frame(now){
+    const dt = Math.min((now-last)/1000, .05); last = now;
+    if(!drag){ ang += dt*(lento?0.15:0.75) + vel*dt; vel *= Math.pow(0.04, dt); }
+    gl.uniform2f(uR, cv.width, cv.height); gl.uniform1f(uA, ang);
+    gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
 
